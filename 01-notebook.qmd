@@ -6,8 +6,10 @@ format: html
 ```{r}
 library(tidyverse)
 workbook <- "163-srp-utg-vs-bb-flat.gto.xlsx"
-sheets <- readxl::read_xlsx(workbook, sheet = 1)
-ranges <- readxl::read_xlsx(workbook, sheet = 2)
+bb <- readxl::read_xlsx(workbook, sheet = "BB")
+utg_v_check <- readxl::read_xlsx(workbook, sheet = "UTG v Check")
+utg_v_bet4.5 <- readxl::read_xlsx(workbook, sheet = "UTG v Bet4.5")
+ranges <- readxl::read_xlsx(workbook, sheet = "Ranges")
 ```
 
 ( Add something about why we're doing this analysis, and what the data is. Head of the table etc. )
@@ -17,13 +19,13 @@ Let's use tidymodels to see how we may cluster flops together to see which are m
 One difficulty with using the probabilities from each of the actions as variables to perform clustering is that these probabilities are components of a simplex, an array of variables that sum to one. A change in one of these variables necessarily produces a change in the other variables. One way to diminish the effect of that is to take the square root of the probabilities. Another way of resolving that concern is to transform the d variables into a d-1 space, using a reference variable. Since this solver run only had two options at the note for the first player, this is easy. A more generalizable approach would be needed if we begin to give the solver 3 or more options at each node.
 
 ```{r}
-sheets <- sheets |> 
+bb <- bb |> 
     mutate(bet_4.5_sqrt = sqrt(`Bet 4.5`),
            check_sqrt = sqrt(Check),
            bet_4.5_sqrt_ref = bet_4.5_sqrt / check_sqrt
     )
 
-flops_transformed <- sheets |> 
+flops_transformed <- bb |> 
     select(Tree, Equity, EV, bet_4.5_sqrt_ref)
 
 ```
@@ -75,19 +77,12 @@ flops_clustered <- flops_transformed |>
         cluster_k4 = kmeans_fit_4 |> extract_cluster_assignment() |> pull(.cluster),
         cluster_k5 = kmeans_fit_5 |> extract_cluster_assignment() |> pull(.cluster)
     )
-
-# View results
-flops_clustered
 ```
 
-Let's plot the hand clusters with k=3.
+Let's plot the hand clusters with k=3. One thing we immediately see is that unsupringly, Equity and EV are highly correlated `r cor(flops_clustered$Equity, flops_clustered$EV)`. EV is also highly correlated with our measure of betting frequency `r cor(flops_clustered$EV, flops_clustered$bet_4.5_sqrt_ref)`, but Equity is not strongly correlated with betting frequency `r cor(flops_clustered$Equity, flops_clustered$bet_4.5_sqrt_ref)`.
 
 ```{r}
 library(plotly)
-
-if (!exists("flops_clustered")) {
-    stop("flops_clustered not found; run the clustering chunk first.")
-}
 
 flops_clustered |> 
     mutate(cluster_k3 = factor(cluster_k3)) |> 
@@ -116,5 +111,69 @@ flops_clustered |>
         ),
         legend = list(title = list(text = "Cluster (k=3)"))
     )
+```
 
+Let's remember the player we're analyzing is the BB in a situation where the UTG player has opened and the BB player has called. The UTG player has a strong range and the BB player will have a defending range. The initiative will be with the UTG preflop raiser, so we don't expect the BB player to be leading for a bet on really any flops.
+
+In green are generally bad flops for the BB player - they are low equity, and low EV flops, which aren't bet much by BB vs. an UTG preflop raiser. They contain hands like 4s3d3c, which don't connect well with either player's range, or KsJdTc, which connects very well with the UTG preflop raiser's range. They are shown below, sorted by how frequently they are bet. 
+
+```{r}
+# We'll want to use the 'gt' package to pretty this up.
+flops_clustered |> 
+    filter(cluster_k3 == "Cluster_1") |>
+    arrange(desc(bet_4.5_sqrt_ref))
+```
+
+In blue are flops with higher equity and EV. Unlike the green flops, we connect well with these flops. Like the green cluster, they are also not bet very often, and contain flops like Js6d4c.
+
+```{r}
+# We'll want to use the 'gt' package to pretty this up.
+flops_clustered |> 
+    filter(cluster_k3 == "Cluster_1") |>
+    arrange(desc(bet_4.5_sqrt_ref))
+```
+
+And finally in orange are higher EV, higher Equity flops which are bet relatively often. These include 6s5d4s (a very connected, flush draw flop). Some surprise me, like AsTdTc, which it should be noted is of below-average Equity. Identifying more than three clusters may be in order, as there seems to be more segmentation possible along the bet frequency measure. Alternatively, it could be that there is so little betting by BB against UTG that the bet frequency measure doesn't provide a reliable and stable and useful way to differentiate hands for this player. In practice, we are almost always going to see the BB check 100% of the time against the UTG player; the highest bet frequencies are still below 25%, and only 5 flops have bet frequencies above 15%.
+
+Plotting with K=5 is of unclear value; a new cluster develops that is especially low Equity, low EV, and low betting frequency, and neighbors the remnants of the green cluster, which is now a bundle of average Equity, average EV, and low betting frequency flops. The blue cluster is similar to what we saw before, representing the lowest betting frequency portion of the high EV, high Equity group. The orange cluster remains as well, representing high EV, high Equity, and high betting frequency flops (although AsTdTc remains part of this cluster, and is uniquely low Equity, low EV, but high betting frequency). The other new cluster, the yellow one, features average Equity, average EV flops that are bet around 5%: 4s3d2c and QsQdJc. I don't know that much value is added by identifying this cluster.
+
+```{r}
+flops_clustered |> 
+    mutate(cluster_k5 = factor(cluster_k5)) |> 
+    plot_ly(
+        x = ~Equity,
+        y = ~EV,
+        z = ~bet_4.5_sqrt_ref,
+        color = ~cluster_k5,
+        text = ~Tree,
+        hovertemplate = paste(
+            "Flop: %{text}<br>",
+            "Equity: %{x:.3f}<br>",
+            "EV: %{y:.3f}<br>",
+            "bet_4.5_sqrt_ref: %{z:.3f}<br>"
+        ),
+        colors = c("#1f77b4", "#ff7f0e", "#2ca02c", "#dae50dff", "#680101ff"),
+        type = "scatter3d",
+        mode = "markers",
+        marker = list(size = 4, opacity = 0.8)
+    ) |> 
+    layout(
+        scene = list(
+            xaxis = list(title = "Equity"),
+            yaxis = list(title = "EV"),
+            zaxis = list(title = "bet_4.5_sqrt_ref")
+        ),
+        legend = list(title = list(text = "Cluster (k=5)"))
+    )
+```
+
+Using the K=3 clustering method, let's see how the Equity, EV, and betting frequency differ between each cluster.
+
+
+```{r}
+flops_clustered |>
+    group_by(cluster_k3) |>
+    summarize(Equity = mean(Equity),
+                EV = mean(EV),
+                bet_freq = mean(bet_4.5_sqrt_ref))
 ```
