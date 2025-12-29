@@ -1,0 +1,120 @@
+---
+title: "Untitled"
+format: html
+---
+
+```{r}
+library(tidyverse)
+workbook <- "163-srp-utg-vs-bb-flat.gto.xlsx"
+sheets <- readxl::read_xlsx(workbook, sheet = 1)
+ranges <- readxl::read_xlsx(workbook, sheet = 2)
+```
+
+( Add something about why we're doing this analysis, and what the data is. Head of the table etc. )
+
+Let's use tidymodels to see how we may cluster flops together to see which are most similar to one another in terms of their equity, expected value ("EV"), and the strategies that the solver chooses for each action. 
+
+One difficulty with using the probabilities from each of the actions as variables to perform clustering is that these probabilities are components of a simplex, an array of variables that sum to one. A change in one of these variables necessarily produces a change in the other variables. One way to diminish the effect of that is to take the square root of the probabilities. Another way of resolving that concern is to transform the d variables into a d-1 space, using a reference variable. Since this solver run only had two options at the note for the first player, this is easy. A more generalizable approach would be needed if we begin to give the solver 3 or more options at each node.
+
+```{r}
+sheets <- sheets |> 
+    mutate(bet_4.5_sqrt = sqrt(`Bet 4.5`),
+           check_sqrt = sqrt(Check),
+           bet_4.5_sqrt_ref = bet_4.5_sqrt / check_sqrt
+    )
+
+flops_transformed <- sheets |> 
+    select(Tree, Equity, EV, bet_4.5_sqrt_ref)
+
+```
+
+We can now start clustering these flops together using K-means. We'll try a few different options of K to see what makes sense. 
+
+```{r}
+library(tidymodels)
+library(tidyclust) # provides k_means() and extract_cluster_assignment()
+set.seed(420)
+
+# Prepare data for clustering (exclude Tree label)
+flops_for_clustering <- flops_transformed |> 
+    select(-Tree)
+
+# Create a recipe to normalize the data (important for K-means)
+kmeans_rec <- recipe(~., data = flops_for_clustering) |> 
+    step_normalize(all_numeric_predictors())
+
+# Create K-means specifications for different K values
+kmeans_spec_3 <- k_means(num_clusters = 3) |> set_engine("stats")
+
+kmeans_spec_4 <- k_means(num_clusters = 4) |> set_engine("stats")
+
+kmeans_spec_5 <- k_means(num_clusters = 5) |> set_engine("stats")
+
+# Create workflows
+kmeans_wf_3 <- workflow() |> 
+    add_recipe(kmeans_rec) |> 
+    add_model(kmeans_spec_3)
+
+kmeans_wf_4 <- workflow() |> 
+    add_recipe(kmeans_rec) |> 
+    add_model(kmeans_spec_4)
+
+kmeans_wf_5 <- workflow() |> 
+    add_recipe(kmeans_rec) |> 
+    add_model(kmeans_spec_5)
+
+# Fit the models
+kmeans_fit_3 <- kmeans_wf_3 |> fit(data = flops_for_clustering)
+kmeans_fit_4 <- kmeans_wf_4 |> fit(data = flops_for_clustering)
+kmeans_fit_5 <- kmeans_wf_5 |> fit(data = flops_for_clustering)
+
+# Add cluster assignments back to original data
+flops_clustered <- flops_transformed |> 
+    mutate(
+        cluster_k3 = kmeans_fit_3 |> extract_cluster_assignment() |> pull(.cluster),
+        cluster_k4 = kmeans_fit_4 |> extract_cluster_assignment() |> pull(.cluster),
+        cluster_k5 = kmeans_fit_5 |> extract_cluster_assignment() |> pull(.cluster)
+    )
+
+# View results
+flops_clustered
+```
+
+Let's plot the hand clusters with k=3.
+
+```{r}
+library(plotly)
+
+if (!exists("flops_clustered")) {
+    stop("flops_clustered not found; run the clustering chunk first.")
+}
+
+flops_clustered |> 
+    mutate(cluster_k3 = factor(cluster_k3)) |> 
+    plot_ly(
+        x = ~Equity,
+        y = ~EV,
+        z = ~bet_4.5_sqrt_ref,
+        color = ~cluster_k3,
+        text = ~Tree,
+        hovertemplate = paste(
+            "Flop: %{text}<br>",
+            "Equity: %{x:.3f}<br>",
+            "EV: %{y:.3f}<br>",
+            "bet_4.5_sqrt_ref: %{z:.3f}<br>"
+        ),
+        colors = c("#1f77b4", "#ff7f0e", "#2ca02c"),
+        type = "scatter3d",
+        mode = "markers",
+        marker = list(size = 4, opacity = 0.8)
+    ) |> 
+    layout(
+        scene = list(
+            xaxis = list(title = "Equity"),
+            yaxis = list(title = "EV"),
+            zaxis = list(title = "bet_4.5_sqrt_ref")
+        ),
+        legend = list(title = list(text = "Cluster (k=3)"))
+    )
+
+```
