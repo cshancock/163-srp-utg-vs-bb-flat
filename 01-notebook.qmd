@@ -1,14 +1,24 @@
 ---
-title: "Untitled"
+title: "UTG PRF vs. BB"
 format: html
 ---
 
 ```{r}
 library(tidyverse)
 workbook <- "163-srp-utg-vs-bb-flat.gto.xlsx"
-bb <- readxl::read_xlsx(workbook, sheet = "BB")
-utg_v_check <- readxl::read_xlsx(workbook, sheet = "UTG v Check")
-utg_v_bet4.5 <- readxl::read_xlsx(workbook, sheet = "UTG v Bet4.5")
+
+bb <- readxl::read_xlsx(workbook, sheet = "BB") |> 
+   filter(!is.na(Tree),
+     Tree != "163 flops")
+
+# utg_v_check <- readxl::read_xlsx(workbook, sheet = "UTG v Check") |> 
+#     filter(!is.na(Tree),
+#         Tree != "163 flops")
+
+# utg_v_bet4.5 <- readxl::read_xlsx(workbook, sheet = "UTG v Bet4.5") |> 
+#    filter(!is.na(Tree),
+#        Tree != "163 flops")
+
 ranges <- readxl::read_xlsx(workbook, sheet = "Ranges")
 ```
 
@@ -16,7 +26,9 @@ ranges <- readxl::read_xlsx(workbook, sheet = "Ranges")
 
 Let's use tidymodels to see how we may cluster flops together to see which are most similar to one another in terms of their equity, expected value ("EV"), and the strategies that the solver chooses for each action. 
 
-One difficulty with using the probabilities from each of the actions as variables to perform clustering is that these probabilities are components of a simplex, an array of variables that sum to one. A change in one of these variables necessarily produces a change in the other variables. One way to diminish the effect of that is to take the square root of the probabilities. Another way of resolving that concern is to transform the d variables into a d-1 space, using a reference variable. Since this solver run only had two options at the note for the first player, this is easy. A more generalizable approach would be needed if we begin to give the solver 3 or more options at each node.
+One difficulty with using the probabilities from each of the actions as variables to perform clustering is that these probabilities are components of a simplex, an array of variables that sum to one. A change in one of these variables necessarily produces a change in the other variables. One way to diminish the effect of that is to take the square root of the probabilities.[^1] Another way of resolving that concern is to transform the d variables into a d-1 space, using a reference variable. Since this solver run only had two options at the note for the first player, this is easy. A more generalizable approach would be needed if we begin to give the solver 3 or more options at each node.
+
+[^1]: I haven't given significant thought to what this means for scaling.
 
 ```{r}
 bb <- bb |> 
@@ -35,7 +47,7 @@ We can now start clustering these flops together using K-means. We'll try a few 
 ```{r}
 library(tidymodels)
 library(tidyclust) # provides k_means() and extract_cluster_assignment()
-set.seed(420)
+set.seed(67)
 
 # Prepare data for clustering (exclude Tree label)
 flops_for_clustering <- flops_transformed |> 
@@ -79,7 +91,7 @@ flops_clustered <- flops_transformed |>
     )
 ```
 
-Let's plot the hand clusters with k=3. One thing we immediately see is that unsupringly, Equity and EV are highly correlated `r cor(flops_clustered$Equity, flops_clustered$EV)`. EV is also highly correlated with our measure of betting frequency `r cor(flops_clustered$EV, flops_clustered$bet_4.5_sqrt_ref)`, but Equity is not strongly correlated with betting frequency `r cor(flops_clustered$Equity, flops_clustered$bet_4.5_sqrt_ref)`.
+Let's plot the hand clusters with k=3. One thing we immediately see is that unsurprisingly, Equity and EV are highly correlated `r cor(flops_clustered$Equity, flops_clustered$EV)`. EV is also highly correlated with our measure of betting frequency `r cor(flops_clustered$EV, flops_clustered$bet_4.5_sqrt_ref)`, but Equity is not strongly correlated with betting frequency `r cor(flops_clustered$Equity, flops_clustered$bet_4.5_sqrt_ref)`.
 
 ```{r}
 library(plotly)

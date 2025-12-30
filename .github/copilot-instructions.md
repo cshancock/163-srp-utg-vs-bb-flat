@@ -17,7 +17,7 @@ This project analyzes Game Theory Optimal (GTO) solver output for poker situatio
 - Action probabilities form a **simplex**: they sum to 1, creating dependency between variables
 
 ### Compositional Data Transformation
-The project uses a critical transformation for clustering simplex data:
+The project began in 01-notebook.qmd by using a critical transformation for clustering simplex data:
 ```r
 # Square root transformation + reference variable approach
 bet_4.5_sqrt = sqrt(`Bet 4.5`)
@@ -27,6 +27,8 @@ bet_4.5_sqrt_ref = bet_4.5_sqrt / check_sqrt
 - **Why**: Simplex variables are interdependent; transformations can mitigate this dependency
 - **Two approaches**: (1) Square root, (2) d-1 reference variable transformation
 - For 2 actions, reference transformation is simple; 3+ actions need more general approach
+
+We are in the process of developing more general approaches for this problem.
 
 ## Workflow & Development Patterns
 
@@ -62,3 +64,5 @@ fit() |> extract_cluster_assignment()
 **Transform action probabilities**: Always apply sqrt + reference transformation for simplex data before clustering
 
 **Visualize clusters**: Generate cluster plots to visualize flop groupings across different K values and examine cluster characteristics
+
+
