@@ -5,7 +5,7 @@ format: html
 
 ```{r}
 library(tidyverse)
-workbook <- "163-srp-utg-vs-bb-flat.gto.xlsx"
+workbook <- "../data-raw/163-srp-utg-vs-bb-flat.gto.xlsx"
 
 # bb <- readxl::read_xlsx(workbook, sheet = "BB") |> 
 #    filter(!is.na(Tree),
@@ -33,38 +33,11 @@ In the last notebook, we mentioned the difficulty that comes with using the prob
 But here our UTG player has three betting options: check; bet 3 big blinds, and bet 5.9 big blinds. more generalizable approach would be needed if we begin to give the solver 3 or more options at each node. We attempt one below.
 
 ```{r}
+source("../R/compositional.R")
+
 action_cols <- c("Bet 5.9", "Bet 3", "Check")
 
-add_compositional_distance <- function(df, action_cols) {
-    # Transform: sqrt of probabilities, then reference (d-1) transformation
-    ref_col <- action_cols[length(action_cols)]  # Use last action as reference
-    
-    # Create transformed columns
-    transformed <- action_cols[-length(action_cols)] |>
-        map_dfc(~{
-            col_name <- paste0(., "_ref")
-            df |>
-                transmute(
-                    # Add epsilon to avoid division by zero
-                    !!col_name := sqrt(!!sym(.) + 1e-6) / sqrt(!!sym(ref_col) + 1e-6)
-                )
-        })
-    
-    # Calculate Mahalanobis distance (T^2)
-    X <- as.matrix(transformed)
-    # Add small regularization term to diagonal to ensure invertibility
-    cov_matrix <- cov(X)
-    diag(cov_matrix) <- diag(cov_matrix) + 1e-6
-    T2 <- mahalanobis(X, center = colMeans(X), cov = cov_matrix)
-    
-    # Add to original dataframe
-    df |> 
-        bind_cols(transformed) |>
-        mutate(mahalanobis = T2)
-}
-
-# Usage:
-utg_v_check <- utg_v_check |> 
+utg_v_check <- utg_v_check |>
     add_compositional_distance(action_cols = action_cols)
 ```
 
