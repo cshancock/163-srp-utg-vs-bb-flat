@@ -1,11 +1,15 @@
 ---
 title: "UTG PRF vs. BB"
 format: html
+execute: 
+    echo: false
+code-fold: true
 ---
 
 ```{r}
 library(tidyverse)
-workbook <- "./data-raw/163-srp-utg-vs-bb-flat.gto.xlsx"
+library(here)
+workbook <- here("data-raw", "163-srp-utg-vs-bb-flat.gto.xlsx")
 
 bb <- readxl::read_xlsx(workbook, sheet = "BB") |> 
    filter(!is.na(Tree),

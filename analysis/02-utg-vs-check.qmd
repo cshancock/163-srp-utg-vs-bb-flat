@@ -1,11 +1,16 @@
 ---
 title: "UTG PRF vs. BB: BB checks flop"
 format: html
+execute: 
+    echo: false
+code-fold: true
 ---
 
 ```{r}
+#| echo: true
 library(tidyverse)
-workbook <- "../data-raw/163-srp-utg-vs-bb-flat.gto.xlsx"
+library(here)
+workbook <- here("data-raw", "163-srp-utg-vs-bb-flat.gto.xlsx")
 
 # bb <- readxl::read_xlsx(workbook, sheet = "BB") |> 
 #    filter(!is.na(Tree),
@@ -33,7 +38,7 @@ In the last notebook, we mentioned the difficulty that comes with using the prob
 But here our UTG player has three betting options: check; bet 3 big blinds, and bet 5.9 big blinds. more generalizable approach would be needed if we begin to give the solver 3 or more options at each node. We attempt one below.
 
 ```{r}
-source("../R/compositional.R")
+source(here("R", "compositional.R"))
 
 action_cols <- c("Bet 5.9", "Bet 3", "Check")
 
@@ -43,15 +48,9 @@ utg_v_check <- utg_v_check |>
 
 Mahalanobis distance measures how far a point is from the center of a distribution, accounting for the correlation structure of the variables. It is expressed in units of standard deviations.
 
-**Interpretation:**
-- **Low values (close to 0)**: The observation is similar to the typical observation in the distribution, indicating good balance or similarity between groups
-- **High values**: The observation is far from the typical observation, indicating poor balance or dissimilarity between groups
+Low values (close to zero) indicate the observation is similar to the typical observation in the distribution, indicating good balance or similarity between groups. 
 
-**Why transform with square root or log1p():**
-- Mahalanobis distance is always non-negative and often has a highly right-skewed distribution
-- **Square root transformation**: Reduces skewness and makes the distribution more symmetric, which can improve visualization and interpretation
-- **log1p() transformation**: `log(1 + x)` handles zero values gracefully while compressing large distances, making extreme outliers less influential and creating a more interpretable scale for visualization
-- Both transformations help create more evenly distributed visual scales when plotting balance diagnostics
+High value sindicate the observation is far from the typical observation, indicating poor balance or dissimilarity between groups. 
 
 In other words, the Mahalanobis measure captures how unusual a flop's strategy is, compared to the other flops. **This might suggest these are worth study as outliers or strategic exemplars.** 
 
@@ -86,7 +85,9 @@ kmeans_fit_3 <- kmeans_wflow_3 |>
 # Extract cluster assignments
 flops_clustered <- utg_v_check |>
     mutate(cluster_3 = extract_cluster_assignment(kmeans_fit_3)$.cluster)
+```
 
+```{r}
 # View cluster summary
 flops_clustered |>
     count(cluster_3)
@@ -98,7 +99,9 @@ Now let's plot the clusters in a 3D space of Equity, EV, and Check.[^2] The clus
 
 ```{r}
 library(plotly)
+```
 
+```{r}
 flops_clustered |> 
     mutate(cluster_3 = factor(cluster_3)) |> 
     plot_ly(
