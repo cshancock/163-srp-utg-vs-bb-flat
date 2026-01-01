@@ -120,3 +120,67 @@ parse_cards <- function(card_string) {
     card_index = seq_len(n_cards)
   )
 }
+
+
+#' Prepare data for ring visualization
+#'
+#' Creates a complete data frame for ggplot2 rendering, including all 13 ranks
+#' with their angular positions and x/y coordinates. Cards present in the input
+#' are marked and positioned, with radial offsets for pairs/trips at the same rank.
+#'
+#' @param card_string A string of concatenated 2-character card codes
+#'   (e.g., "AsTdTc" for a flop, "AhKh" for a hand)
+#' @param base_radius Base radius for card placement (default 1.0)
+#' @param radial_offset Radial separation between cards at the same rank (default 0.15)
+#'
+#' @return A list with two tibbles:
+#'   - `ranks`: All 13 ranks with `rank`, `angle`, `x_label`, `y_label`, `has_cards`
+#'   - `cards`: Cards present with `rank`, `suit`, `suit_symbol`, `suit_color`,
+#'     `card_index`, `angle`, `r`, `x`, `y`
+#'
+#' @examples
+#' prepare_ring_data("AsTdTc")
+#' prepare_ring_data("7c7d")
+#'
+prepare_ring_data <- function(card_string, base_radius = 1.0, radial_offset = 0.15) {
+  # Parse the input cards
+
+cards <- parse_cards(card_string)
+
+  # Create rank positions for all 13 ranks
+  label_radius <- base_radius + 0.3
+  ranks_data <- tibble::tibble(
+    rank = RANK_ORDER,
+    angle = rank_to_position(RANK_ORDER)
+  ) |>
+    dplyr::mutate(
+      # Labels positioned outside the card ring
+      # -pi/2 rotation puts Ace at top (12 o'clock)
+      x_label = cos(.data$angle - pi / 2) * label_radius,
+      y_label = sin(.data$angle - pi / 2) * label_radius,
+      has_cards = .data$rank %in% cards$rank
+    )
+
+  # Add positioning to cards, handling pairs/trips with radial offset
+  cards_positioned <- cards |>
+    dplyr::mutate(angle = rank_to_position(.data$rank)) |>
+    dplyr::group_by(.data$rank) |>
+    dplyr::mutate(
+      rank_card_num = dplyr::row_number(),
+      n_at_rank = dplyr::n(),
+      # Center cards radially: for n cards, spread from -offset*(n-1)/2 to +offset*(n-1)/2
+      r = base_radius + (.data$rank_card_num - (.data$n_at_rank + 1) / 2) * radial_offset
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::mutate(
+      # Convert polar to Cartesian (-pi/2 puts Ace at top)
+      x = cos(.data$angle - pi / 2) * .data$r,
+      y = sin(.data$angle - pi / 2) * .data$r
+    ) |>
+    dplyr::select(-"rank_card_num", -"n_at_rank")
+
+  list(
+    ranks = ranks_data,
+    cards = cards_positioned
+  )
+}
