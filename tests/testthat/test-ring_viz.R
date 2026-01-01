@@ -130,17 +130,17 @@ test_that("prepare_ring_data handles paired ranks with radial offset", {
   ten_cards <- result$cards
   expect_equal(nrow(ten_cards), 2)
   # Check radial offset - cards should have different r values
-expect_true(ten_cards$r[1] != ten_cards$r[2])
-  # Both should be centered around base_radius=1
-  expect_equal(mean(ten_cards$r), 1.0)
+  expect_true(ten_cards$r[1] != ten_cards$r[2])
+  # Both should be centered around base_radius + suit_radius_offset
+  expect_equal(mean(ten_cards$r), 1.2)
 })
 
 test_that("prepare_ring_data handles trips", {
   source("../../R/ring_viz.R")
   result <- prepare_ring_data("TdTcTh")
   expect_equal(nrow(result$cards), 3)
-  # Middle card should be at base radius
-  expect_equal(result$cards$r[2], 1.0)
+  # Middle card should be centered on the suit radius
+  expect_equal(result$cards$r[2], 1.2)
 })
 
 test_that("prepare_ring_data computes x/y coordinates", {
@@ -149,6 +149,21 @@ test_that("prepare_ring_data computes x/y coordinates", {
   # Ace should be at top (y > 0, x ~ 0)
   expect_true(result$cards$y[1] > 0.9)
   expect_true(abs(result$cards$x[1]) < 0.1)
+})
+
+test_that("ranks sit on ring and suits are above it", {
+  source("../../R/ring_viz.R")
+  result <- prepare_ring_data("AsTdTc")
+  rank_radius <- sqrt(result$ranks$x_label[1]^2 + result$ranks$y_label[1]^2)
+  suit_radii <- sqrt(result$cards$x^2 + result$cards$y^2)
+  expect_true(abs(rank_radius - 1.0) < 1e-8)
+  expect_true(all(suit_radii > rank_radius))
+})
+
+test_that("suit radius can be overridden directly", {
+  source("../../R/ring_viz.R")
+  result <- prepare_ring_data("As", suit_radius = 1.5, suit_radius_offset = 0.2)
+  expect_true(abs(result$cards$r[1] - 1.5) < 1e-8)
 })
 
 
@@ -223,4 +238,21 @@ test_that("render functions work with show_labels parameter", {
   source("../../R/ring_viz.R")
   # Should not error with labels disabled
   expect_s3_class(render_flop_ring("AsTdTc", show_labels = FALSE), "ggplot")
+})
+
+test_that("render_flop_ring supports rank font customization", {
+  source("../../R/ring_viz.R")
+  p <- render_flop_ring("AsTdTc", rank_font_family = "Courier")
+  families <- vapply(p$layers, function(layer) {
+    if (is.null(layer$aes_params$family)) NA_character_ else layer$aes_params$family
+  }, character(1))
+  expect_true("Courier" %in% families)
+})
+
+test_that("ring styling parameters are applied", {
+  source("../../R/ring_viz.R")
+  p <- render_flop_ring("AsTdTc", circle_color = "blue", circle_linewidth = 2)
+  circle_layer <- p$layers[[1]]
+  expect_equal(circle_layer$aes_params$colour, "blue")
+  expect_equal(circle_layer$aes_params$linewidth, 2)
 })

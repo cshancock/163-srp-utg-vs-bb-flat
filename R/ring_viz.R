@@ -132,6 +132,9 @@ parse_cards <- function(card_string) {
 #'   (e.g., "AsTdTc" for a flop, "AhKh" for a hand)
 #' @param base_radius Base radius for card placement (default 1.0)
 #' @param radial_offset Radial separation between cards at the same rank (default 0.15)
+#' @param label_radius Radius for rank labels (defaults to `base_radius`)
+#' @param suit_radius Absolute radius for suits (overrides offset when provided)
+#' @param suit_radius_offset Additional radial distance to place suits outside the ring
 #'
 #' @return A list with two tibbles:
 #'   - `ranks`: All 13 ranks with `rank`, `angle`, `x_label`, `y_label`, `has_cards`
@@ -142,19 +145,26 @@ parse_cards <- function(card_string) {
 #' prepare_ring_data("AsTdTc")
 #' prepare_ring_data("7c7d")
 #'
-prepare_ring_data <- function(card_string, base_radius = 1.0, radial_offset = 0.15) {
+prepare_ring_data <- function(card_string, base_radius = 1.0, radial_offset = 0.15,
+                              label_radius = NULL, suit_radius = NULL,
+                              suit_radius_offset = 0.2) {
   # Parse the input cards
+  cards <- parse_cards(card_string)
 
-cards <- parse_cards(card_string)
+  if (is.null(label_radius)) {
+    label_radius <- base_radius
+  }
+  if (is.null(suit_radius)) {
+    suit_radius <- base_radius + suit_radius_offset
+  }
 
   # Create rank positions for all 13 ranks
-  label_radius <- base_radius + 0.3
   ranks_data <- tibble::tibble(
     rank = RANK_ORDER,
     angle = rank_to_position(RANK_ORDER)
   ) |>
     dplyr::mutate(
-      # Labels positioned outside the card ring
+      # Labels positioned on/near the card ring
       # sin/cos puts angle=0 (Ace) at top (12 o'clock), clockwise
       x_label = sin(.data$angle) * label_radius,
       y_label = cos(.data$angle) * label_radius,
@@ -169,7 +179,7 @@ cards <- parse_cards(card_string)
       rank_card_num = dplyr::row_number(),
       n_at_rank = dplyr::n(),
       # Center cards radially: for n cards, spread from -offset*(n-1)/2 to +offset*(n-1)/2
-      r = base_radius + (.data$rank_card_num - (.data$n_at_rank + 1) / 2) * radial_offset
+      r = suit_radius + (.data$rank_card_num - (.data$n_at_rank + 1) / 2) * radial_offset
     ) |>
     dplyr::ungroup() |>
     dplyr::mutate(
@@ -197,13 +207,23 @@ cards <- parse_cards(card_string)
 #' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
 #' @param title Optional title for the plot
 #' @param base_radius Base radius used in data preparation (default 1.0)
+#' @param circle_color Color for the reference ring
+#' @param circle_linewidth Line width for the reference ring
+#' @param circle_linetype Line type for the reference ring
+#' @param rank_font_family Font family for rank labels (default NULL inherits theme)
+#' @param rank_font_size Font size for rank labels
+#' @param rank_font_face Font face for rank labels
 #'
 #' @return A ggplot2 object
 #'
 #' @keywords internal
 #'
 build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
-                            title = NULL, base_radius = 1.0) {
+                            title = NULL, base_radius = 1.0,
+                            circle_color = "gray80", circle_linewidth = 0.5,
+                            circle_linetype = "solid",
+                            rank_font_family = NULL, rank_font_size = 4,
+                            rank_font_face = "plain") {
   ranks <- ring_data$ranks
   cards <- ring_data$cards
 
@@ -220,8 +240,9 @@ build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
     ggplot2::geom_path(
       data = circle_df,
       ggplot2::aes(x = .data$x, y = .data$y),
-      color = "gray80",
-      linewidth = 0.5
+      color = circle_color,
+      linewidth = circle_linewidth,
+      linetype = circle_linetype
     )
 
   # Add rank labels if requested
@@ -235,8 +256,10 @@ build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
           label = .data$rank,
           alpha = ifelse(.data$has_cards, 1, empty_alpha)
         ),
-        size = 4,
-        color = "gray30"
+        size = rank_font_size,
+        color = "gray30",
+        family = rank_font_family,
+        fontface = rank_font_face
       ) +
       ggplot2::scale_alpha_identity()
   }
@@ -291,6 +314,17 @@ build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
 #' @param show_labels Logical; show rank labels on ring (default TRUE)
 #' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
 #' @param title Optional title for the plot
+#' @param base_radius Base radius for the reference ring
+#' @param radial_offset Radial spacing between multiple cards of same rank
+#' @param label_radius Radius used for rank labels (defaults to `base_radius`)
+#' @param suit_radius Absolute radius for suits (overrides offset when provided)
+#' @param suit_radius_offset Distance to place suits outside the ring
+#' @param circle_color Color for the reference ring
+#' @param circle_linewidth Line width for the reference ring
+#' @param circle_linetype Line type for the reference ring
+#' @param rank_font_family Font family for rank labels
+#' @param rank_font_size Font size for rank labels
+#' @param rank_font_face Font face for rank labels
 #'
 #' @return A ggplot2 object
 #'
@@ -299,13 +333,34 @@ build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
 #' render_cards_ring("AhKhQdJcTs", title = "Full board")
 #'
 render_cards_ring <- function(card_string, show_labels = TRUE,
-                               empty_alpha = 0.2, title = NULL) {
-  ring_data <- prepare_ring_data(card_string)
+                               empty_alpha = 0.2, title = NULL,
+                               base_radius = 1.0, radial_offset = 0.15,
+                               label_radius = NULL, suit_radius = NULL,
+                               suit_radius_offset = 0.2,
+                               circle_color = "gray80", circle_linewidth = 0.5,
+                               circle_linetype = "solid",
+                               rank_font_family = NULL, rank_font_size = 4,
+                               rank_font_face = "plain") {
+  ring_data <- prepare_ring_data(
+    card_string,
+    base_radius = base_radius,
+    radial_offset = radial_offset,
+    label_radius = label_radius,
+    suit_radius = suit_radius,
+    suit_radius_offset = suit_radius_offset
+  )
   build_ring_plot(
     ring_data,
     show_labels = show_labels,
     empty_alpha = empty_alpha,
-    title = title
+    title = title,
+    base_radius = base_radius,
+    circle_color = circle_color,
+    circle_linewidth = circle_linewidth,
+    circle_linetype = circle_linetype,
+    rank_font_family = rank_font_family,
+    rank_font_size = rank_font_size,
+    rank_font_face = rank_font_face
   )
 }
 
@@ -320,6 +375,7 @@ render_cards_ring <- function(card_string, show_labels = TRUE,
 #' @param show_labels Logical; show rank labels on ring (default TRUE)
 #' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
 #' @param title Optional title for the plot
+#' @param ... Additional styling parameters forwarded to `render_cards_ring()`
 #'
 #' @return A ggplot2 object
 #'
@@ -329,7 +385,7 @@ render_cards_ring <- function(card_string, show_labels = TRUE,
 #' render_flop_ring("KsKhKd", title = "Trips board")
 #'
 render_flop_ring <- function(flop_string, show_labels = TRUE,
-                              empty_alpha = 0.2, title = NULL) {
+                              empty_alpha = 0.2, title = NULL, ...) {
   if (!is.character(flop_string) || length(flop_string) != 1) {
     stop("flop_string must be a single character string")
   }
@@ -341,7 +397,8 @@ render_flop_ring <- function(flop_string, show_labels = TRUE,
     flop_string,
     show_labels = show_labels,
     empty_alpha = empty_alpha,
-    title = title
+    title = title,
+    ...
   )
 }
 
@@ -356,6 +413,7 @@ render_flop_ring <- function(flop_string, show_labels = TRUE,
 #' @param show_labels Logical; show rank labels on ring (default TRUE)
 #' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
 #' @param title Optional title for the plot
+#' @param ... Additional styling parameters forwarded to `render_cards_ring()`
 #'
 #' @return A ggplot2 object
 #'
@@ -364,7 +422,7 @@ render_flop_ring <- function(flop_string, show_labels = TRUE,
 #' render_hand_ring("7c7d", title = "Pocket sevens")
 #'
 render_hand_ring <- function(hand_string, show_labels = TRUE,
-                              empty_alpha = 0.2, title = NULL) {
+                              empty_alpha = 0.2, title = NULL, ...) {
   if (!is.character(hand_string) || length(hand_string) != 1) {
     stop("hand_string must be a single character string")
   }
@@ -376,7 +434,8 @@ render_hand_ring <- function(hand_string, show_labels = TRUE,
     hand_string,
     show_labels = show_labels,
     empty_alpha = empty_alpha,
-    title = title
+    title = title,
+    ...
   )
 }
 
@@ -391,6 +450,7 @@ render_hand_ring <- function(hand_string, show_labels = TRUE,
 #' @param show_labels Logical; show rank labels on ring (default TRUE)
 #' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
 #' @param title Optional title for the plot
+#' @param ... Additional styling parameters forwarded to `render_cards_ring()`
 #'
 #' @return A ggplot2 object
 #'
@@ -399,7 +459,7 @@ render_hand_ring <- function(hand_string, show_labels = TRUE,
 #' render_turn_ring("6s5d4c3h", title = "Four to a straight")
 #'
 render_turn_ring <- function(turn_string, show_labels = TRUE,
-                              empty_alpha = 0.2, title = NULL) {
+                              empty_alpha = 0.2, title = NULL, ...) {
   if (!is.character(turn_string) || length(turn_string) != 1) {
     stop("turn_string must be a single character string")
   }
@@ -411,7 +471,8 @@ render_turn_ring <- function(turn_string, show_labels = TRUE,
     turn_string,
     show_labels = show_labels,
     empty_alpha = empty_alpha,
-    title = title
+    title = title,
+    ...
   )
 }
 
@@ -426,6 +487,7 @@ render_turn_ring <- function(turn_string, show_labels = TRUE,
 #' @param show_labels Logical; show rank labels on ring (default TRUE)
 #' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
 #' @param title Optional title for the plot
+#' @param ... Additional styling parameters forwarded to `render_cards_ring()`
 #'
 #' @return A ggplot2 object
 #'
@@ -434,7 +496,7 @@ render_turn_ring <- function(turn_string, show_labels = TRUE,
 #' render_board_ring("6s5d4c3h2s", title = "Straight board")
 #'
 render_board_ring <- function(board_string, show_labels = TRUE,
-                               empty_alpha = 0.2, title = NULL) {
+                               empty_alpha = 0.2, title = NULL, ...) {
   if (!is.character(board_string) || length(board_string) != 1) {
     stop("board_string must be a single character string")
   }
@@ -446,6 +508,7 @@ render_board_ring <- function(board_string, show_labels = TRUE,
     board_string,
     show_labels = show_labels,
     empty_alpha = empty_alpha,
-    title = title
+    title = title,
+    ...
   )
 }
