@@ -133,6 +133,7 @@ parse_cards <- function(card_string) {
 #' @param base_radius Base radius for card placement (default 1.0)
 #' @param radial_offset Radial separation between cards at the same rank (default 0.15)
 #' @param label_radius Radius for rank labels (defaults to `base_radius`)
+#' @param suit_radius Absolute radius for suits (overrides offset when provided)
 #' @param suit_radius_offset Additional radial distance to place suits outside the ring
 #'
 #' @return A list with two tibbles:
@@ -145,14 +146,17 @@ parse_cards <- function(card_string) {
 #' prepare_ring_data("7c7d")
 #'
 prepare_ring_data <- function(card_string, base_radius = 1.0, radial_offset = 0.15,
-                              label_radius = NULL, suit_radius_offset = 0.2) {
+                              label_radius = NULL, suit_radius = NULL,
+                              suit_radius_offset = 0.2) {
   # Parse the input cards
   cards <- parse_cards(card_string)
 
   if (is.null(label_radius)) {
     label_radius <- base_radius
   }
-  suit_radius <- base_radius + suit_radius_offset
+  if (is.null(suit_radius)) {
+    suit_radius <- base_radius + suit_radius_offset
+  }
 
   # Create rank positions for all 13 ranks
   ranks_data <- tibble::tibble(
@@ -313,6 +317,7 @@ build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
 #' @param base_radius Base radius for the reference ring
 #' @param radial_offset Radial spacing between multiple cards of same rank
 #' @param label_radius Radius used for rank labels (defaults to `base_radius`)
+#' @param suit_radius Absolute radius for suits (overrides offset when provided)
 #' @param suit_radius_offset Distance to place suits outside the ring
 #' @param circle_color Color for the reference ring
 #' @param circle_linewidth Line width for the reference ring
@@ -330,7 +335,8 @@ build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
 render_cards_ring <- function(card_string, show_labels = TRUE,
                                empty_alpha = 0.2, title = NULL,
                                base_radius = 1.0, radial_offset = 0.15,
-                               label_radius = NULL, suit_radius_offset = 0.2,
+                               label_radius = NULL, suit_radius = NULL,
+                               suit_radius_offset = 0.2,
                                circle_color = "gray80", circle_linewidth = 0.5,
                                circle_linetype = "solid",
                                rank_font_family = NULL, rank_font_size = 4,
@@ -340,6 +346,7 @@ render_cards_ring <- function(card_string, show_labels = TRUE,
     base_radius = base_radius,
     radial_offset = radial_offset,
     label_radius = label_radius,
+    suit_radius = suit_radius,
     suit_radius_offset = suit_radius_offset
   )
   build_ring_plot(

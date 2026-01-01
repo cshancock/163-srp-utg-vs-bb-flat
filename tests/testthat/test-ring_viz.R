@@ -160,6 +160,12 @@ test_that("ranks sit on ring and suits are above it", {
   expect_true(all(suit_radii > rank_radius))
 })
 
+test_that("suit radius can be overridden directly", {
+  source("../../R/ring_viz.R")
+  result <- prepare_ring_data("As", suit_radius = 1.5, suit_radius_offset = 0.2)
+  expect_true(abs(result$cards$r[1] - 1.5) < 1e-8)
+})
+
 
 # render function tests -------------------------------------------------------
 
