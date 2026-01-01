@@ -276,3 +276,176 @@ build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
 
   p
 }
+
+
+# User-facing functions -------------------------------------------------------
+
+#' Render cards as a circular ring
+#'
+#' Generic function to render any number of cards as a circular ring.
+#' This is the core rendering function; use `render_flop_ring()`,
+#' `render_turn_ring()`, `render_board_ring()`, or `render_hand_ring()`
+#' for validated wrappers.
+#'
+#' @param card_string A string of concatenated 2-character card codes
+#' @param show_labels Logical; show rank labels on ring (default TRUE)
+#' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
+#' @param title Optional title for the plot
+#'
+#' @return A ggplot2 object
+#'
+#' @examples
+#' render_cards_ring("AsTdTc")
+#' render_cards_ring("AhKhQdJcTs", title = "Full board")
+#'
+render_cards_ring <- function(card_string, show_labels = TRUE,
+                               empty_alpha = 0.2, title = NULL) {
+  ring_data <- prepare_ring_data(card_string)
+  build_ring_plot(
+    ring_data,
+    show_labels = show_labels,
+    empty_alpha = empty_alpha,
+    title = title
+  )
+}
+
+
+#' Render a poker flop as a circular ring
+#'
+#' Renders a 3-card flop as a circular ring where all 13 ranks appear
+#' positionally around a circle with suit symbols at populated ranks.
+#'
+#' @param flop_string A 6-character string representing 3 cards
+#'   (e.g., "AsTdTc", "6h5d4c")
+#' @param show_labels Logical; show rank labels on ring (default TRUE)
+#' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
+#' @param title Optional title for the plot
+#'
+#' @return A ggplot2 object
+#'
+#' @examples
+#' render_flop_ring("AsTdTc")
+#' render_flop_ring("6s5d4c", title = "Connected flop")
+#' render_flop_ring("KsKhKd", title = "Trips board")
+#'
+render_flop_ring <- function(flop_string, show_labels = TRUE,
+                              empty_alpha = 0.2, title = NULL) {
+  if (!is.character(flop_string) || length(flop_string) != 1) {
+    stop("flop_string must be a single character string")
+  }
+  if (nchar(flop_string) != 6) {
+    stop("flop_string must be exactly 6 characters (3 cards)")
+  }
+
+  render_cards_ring(
+    flop_string,
+    show_labels = show_labels,
+    empty_alpha = empty_alpha,
+    title = title
+  )
+}
+
+
+#' Render a poker hand as a circular ring
+#'
+#' Renders a 2-card hand as a circular ring where all 13 ranks appear
+#' positionally around a circle with suit symbols at populated ranks.
+#'
+#' @param hand_string A 4-character string representing 2 cards
+#'   (e.g., "AhKh", "7c7d")
+#' @param show_labels Logical; show rank labels on ring (default TRUE)
+#' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
+#' @param title Optional title for the plot
+#'
+#' @return A ggplot2 object
+#'
+#' @examples
+#' render_hand_ring("AhKh")
+#' render_hand_ring("7c7d", title = "Pocket sevens")
+#'
+render_hand_ring <- function(hand_string, show_labels = TRUE,
+                              empty_alpha = 0.2, title = NULL) {
+  if (!is.character(hand_string) || length(hand_string) != 1) {
+    stop("hand_string must be a single character string")
+  }
+  if (nchar(hand_string) != 4) {
+    stop("hand_string must be exactly 4 characters (2 cards)")
+  }
+
+  render_cards_ring(
+    hand_string,
+    show_labels = show_labels,
+    empty_alpha = empty_alpha,
+    title = title
+  )
+}
+
+
+#' Render a poker turn board as a circular ring
+#'
+#' Renders a 4-card board (flop + turn) as a circular ring where all 13
+#' ranks appear positionally around a circle with suit symbols.
+#'
+#' @param turn_string An 8-character string representing 4 cards
+#'   (e.g., "AsTdTc7h")
+#' @param show_labels Logical; show rank labels on ring (default TRUE)
+#' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
+#' @param title Optional title for the plot
+#'
+#' @return A ggplot2 object
+#'
+#' @examples
+#' render_turn_ring("AsTdTc7h")
+#' render_turn_ring("6s5d4c3h", title = "Four to a straight")
+#'
+render_turn_ring <- function(turn_string, show_labels = TRUE,
+                              empty_alpha = 0.2, title = NULL) {
+  if (!is.character(turn_string) || length(turn_string) != 1) {
+    stop("turn_string must be a single character string")
+  }
+  if (nchar(turn_string) != 8) {
+    stop("turn_string must be exactly 8 characters (4 cards)")
+  }
+
+  render_cards_ring(
+    turn_string,
+    show_labels = show_labels,
+    empty_alpha = empty_alpha,
+    title = title
+  )
+}
+
+
+#' Render a poker river board as a circular ring
+#'
+#' Renders a 5-card board (flop + turn + river) as a circular ring where
+#' all 13 ranks appear positionally around a circle with suit symbols.
+#'
+#' @param board_string A 10-character string representing 5 cards
+#'   (e.g., "AsTd7c2hKs")
+#' @param show_labels Logical; show rank labels on ring (default TRUE)
+#' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
+#' @param title Optional title for the plot
+#'
+#' @return A ggplot2 object
+#'
+#' @examples
+#' render_board_ring("AsTd7c2hKs")
+#' render_board_ring("6s5d4c3h2s", title = "Straight board")
+#'
+render_board_ring <- function(board_string, show_labels = TRUE,
+                               empty_alpha = 0.2, title = NULL) {
+  if (!is.character(board_string) || length(board_string) != 1) {
+    stop("board_string must be a single character string")
+  }
+  if (nchar(board_string) != 10) {
+    stop("board_string must be exactly 10 characters (5 cards)")
+  }
+
+  render_cards_ring(
+    board_string,
+    show_labels = show_labels,
+    empty_alpha = empty_alpha,
+    title = title
+  )
+}
