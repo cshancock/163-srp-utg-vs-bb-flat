@@ -46,3 +46,77 @@ rank_to_position <- function(rank) {
 
   (rank_index - 1) / length(RANK_ORDER) * 2 * pi
 }
+
+
+#' Parse a poker card string into individual cards
+#'
+#' Parses a string like "AsTdTc" (flop) or "AhKh" (hand) into a tibble of
+#' individual cards with rank, suit, and display properties.
+#'
+#' @param card_string A string of concatenated 2-character card codes.
+#'   Each card is rank (A,K,Q,J,T,9-2) followed by suit (s,h,d,c).
+#'   Examples: "AsTdTc" (3 cards), "AhKh" (2 cards), "AsKhQdJcTs" (5 cards)
+#'
+#' @return A tibble with columns:
+#'   - `rank`: Character rank (A, K, Q, J, T, 9-2)
+#'   - `suit`: Character suit code (s, h, d, c)
+#'   - `suit_symbol`: Unicode suit symbol
+#'   - `suit_color`: Color for display ("black" or "red")
+#'   - `card_index`: Position in original string (1-based)
+#'
+#' @examples
+#' parse_cards("AsTdTc")
+#' parse_cards("AhKh")
+#'
+parse_cards <- function(card_string) {
+  if (!is.character(card_string) || length(card_string) != 1) {
+    stop("card_string must be a single character string")
+  }
+
+  # Normalize: uppercase for ranks, lowercase for suits
+  card_string <- toupper(card_string)
+
+  # Extract 2-character card tokens
+  n_chars <- nchar(card_string)
+  if (n_chars %% 2 != 0) {
+    stop("card_string must have even length (each card is 2 characters)")
+  }
+
+  n_cards <- n_chars / 2
+  if (n_cards == 0) {
+    stop("card_string must contain at least one card")
+  }
+
+  # Parse each card
+  cards <- character(n_cards)
+  for (i in seq_len(n_cards)) {
+    start <- (i - 1) * 2 + 1
+    cards[i] <- substr(card_string, start, start + 1)
+  }
+
+  # Extract rank and suit
+  ranks <- substr(cards, 1, 1)
+  suits <- tolower(substr(cards, 2, 2))
+
+
+  # Validate ranks
+  invalid_ranks <- ranks[!ranks %in% RANK_ORDER]
+  if (length(invalid_ranks) > 0) {
+    stop("Invalid rank(s): ", paste(unique(invalid_ranks), collapse = ", "))
+  }
+
+  # Validate suits
+  valid_suits <- names(SUIT_SYMBOLS)
+  invalid_suits <- suits[!suits %in% valid_suits]
+  if (length(invalid_suits) > 0) {
+    stop("Invalid suit(s): ", paste(unique(invalid_suits), collapse = ", "))
+  }
+
+  tibble::tibble(
+    rank = ranks,
+    suit = suits,
+    suit_symbol = SUIT_SYMBOLS[suits],
+    suit_color = SUIT_COLORS[suits],
+    card_index = seq_len(n_cards)
+  )
+}
