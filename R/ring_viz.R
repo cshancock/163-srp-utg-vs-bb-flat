@@ -184,3 +184,95 @@ cards <- parse_cards(card_string)
     cards = cards_positioned
   )
 }
+
+
+# Plotting functions ----------------------------------------------------------
+
+#' Build the ring plot from prepared data
+#'
+#' Internal function that constructs the ggplot2 object from prepared ring data.
+#'
+#' @param ring_data List returned by `prepare_ring_data()`
+#' @param show_labels Logical; show rank labels on ring (default TRUE)
+#' @param empty_alpha Numeric 0-1; opacity for empty rank positions (default 0.2)
+#' @param title Optional title for the plot
+#' @param base_radius Base radius used in data preparation (default 1.0)
+#'
+#' @return A ggplot2 object
+#'
+#' @keywords internal
+#'
+build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
+                            title = NULL, base_radius = 1.0) {
+  ranks <- ring_data$ranks
+  cards <- ring_data$cards
+
+  # Generate circle coordinates for the reference ring
+  circle_angles <- seq(0, 2 * pi, length.out = 100)
+  circle_df <- tibble::tibble(
+    x = cos(circle_angles - pi / 2) * base_radius,
+    y = sin(circle_angles - pi / 2) * base_radius
+  )
+
+  # Build the plot
+  p <- ggplot2::ggplot() +
+    # Reference circle (subtle gray ring)
+    ggplot2::geom_path(
+      data = circle_df,
+      ggplot2::aes(x = .data$x, y = .data$y),
+      color = "gray80",
+      linewidth = 0.5
+    )
+
+  # Add rank labels if requested
+  if (show_labels) {
+    p <- p +
+      ggplot2::geom_text(
+        data = ranks,
+        ggplot2::aes(
+          x = .data$x_label,
+          y = .data$y_label,
+          label = .data$rank,
+          alpha = ifelse(.data$has_cards, 1, empty_alpha)
+        ),
+        size = 4,
+        color = "gray30"
+      ) +
+      ggplot2::scale_alpha_identity()
+  }
+
+  # Add suit symbols at card positions
+  if (nrow(cards) > 0) {
+    p <- p +
+      ggplot2::geom_text(
+        data = cards,
+        ggplot2::aes(
+          x = .data$x,
+          y = .data$y,
+          label = .data$suit_symbol,
+          color = .data$suit_color
+        ),
+        size = 8
+      ) +
+      ggplot2::scale_color_identity()
+  }
+
+  # Apply theme and coordinate system
+  plot_limit <- base_radius + 0.5
+  p <- p +
+    ggplot2::coord_fixed(
+      xlim = c(-plot_limit, plot_limit),
+      ylim = c(-plot_limit, plot_limit)
+    ) +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(hjust = 0.5)
+    )
+
+  # Add title if provided
+  if (!is.null(title)) {
+    p <- p + ggplot2::labs(title = title)
+  }
+
+  p
+}
