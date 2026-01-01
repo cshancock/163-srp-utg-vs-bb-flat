@@ -155,9 +155,9 @@ cards <- parse_cards(card_string)
   ) |>
     dplyr::mutate(
       # Labels positioned outside the card ring
-      # -pi/2 rotation puts Ace at top (12 o'clock)
-      x_label = cos(.data$angle - pi / 2) * label_radius,
-      y_label = sin(.data$angle - pi / 2) * label_radius,
+      # sin/cos puts angle=0 (Ace) at top (12 o'clock), clockwise
+      x_label = sin(.data$angle) * label_radius,
+      y_label = cos(.data$angle) * label_radius,
       has_cards = .data$rank %in% cards$rank
     )
 
@@ -173,9 +173,9 @@ cards <- parse_cards(card_string)
     ) |>
     dplyr::ungroup() |>
     dplyr::mutate(
-      # Convert polar to Cartesian (-pi/2 puts Ace at top)
-      x = cos(.data$angle - pi / 2) * .data$r,
-      y = sin(.data$angle - pi / 2) * .data$r
+      # Convert polar to Cartesian (sin/cos puts angle=0 at top, clockwise)
+      x = sin(.data$angle) * .data$r,
+      y = cos(.data$angle) * .data$r
     ) |>
     dplyr::select(-"rank_card_num", -"n_at_rank")
 
@@ -210,8 +210,8 @@ build_ring_plot <- function(ring_data, show_labels = TRUE, empty_alpha = 0.2,
   # Generate circle coordinates for the reference ring
   circle_angles <- seq(0, 2 * pi, length.out = 100)
   circle_df <- tibble::tibble(
-    x = cos(circle_angles - pi / 2) * base_radius,
-    y = sin(circle_angles - pi / 2) * base_radius
+    x = sin(circle_angles) * base_radius,
+    y = cos(circle_angles) * base_radius
   )
 
   # Build the plot
