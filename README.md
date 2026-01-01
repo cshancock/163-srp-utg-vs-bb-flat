@@ -12,3 +12,24 @@ This repository collects Game Theory Optimal (GTO) solver analysis for UTG vs. B
 
 - Compositional transformations in R/compositional.R (sqrt + reference or ALR) ensure action probabilities stay on a simplex-friendly scale before clustering.
 - The workflow in R/metrics.R / analysis uses tidymodels recipes that normalize numeric predictors, fit K-means, and tag each flop with a cluster.
+## Visualization
+
+Use `render_cards()` to display poker hands with unicode suits and colors.
+
+```r
+source("R/card_rendering.R")
+
+# Render a single hand
+render_cards("AhKs")
+# Output: "<span style='color:red'>A♥</span> <span style='color:black'>K♠</span>"
+
+# Render a vector of flops in a dataframe
+library(dplyr)
+library(gt)
+
+df <- data.frame(flop = c("4c3c3d", "AhKs9c"))
+df %>%
+  mutate(flop_viz = render_cards(flop)) %>%
+  gt() %>%
+  fmt_markdown(columns = flop_viz)
+```
