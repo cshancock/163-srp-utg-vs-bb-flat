@@ -33,6 +33,12 @@ Intended canonical rank cycle (clockwise or counterclockwise, but consistent):
 ### Intended use in notebooks
 - Keep the API notebook-friendly: takes a string, returns a plot object (or HTML/SVG) suitable for Quarto.
 
+### Usage sketch
+- For a flop: 
+  - df |> filter(Flop == c("AsTdTc")) |> render_flop_ring()
+- For a hand:
+  - df |> filter(Hand = c("AsKd") |> render_hand_ring("AhKh")
+
 ## ggplot2 Hand-Range Grid Layer/Geom (Concept)
 
 ### Goal
