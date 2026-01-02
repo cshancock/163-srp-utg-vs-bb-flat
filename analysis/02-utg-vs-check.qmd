@@ -10,6 +10,7 @@ code-fold: true
 #| echo: true
 library(tidyverse)
 library(here)
+library(gt)
 workbook <- here("data-raw", "163-srp-utg-vs-bb-flat.gto.xlsx")
 
 # bb <- readxl::read_xlsx(workbook, sheet = "BB") |> 
@@ -33,9 +34,9 @@ The first notebook looked briefly at the actions of a BB caller to an UTG preflo
 
 In this workbook we look to see how UTG responds to the almost-certain check by the BB player.
 
-In the last notebook, we mentioned the difficulty that comes with using the probabilities from each of the actions as variables to perform clustering over an array of variables that sum to one. A change in one of these variables necessarily produces a change in the other variables. One way to diminish the effect of that is to take the square root of the probabilities. With only two betting options (checking, and betting 4.5 big blinds), we were easily able to transform the d variables into a d-1 space, using a reference variable. 
+In the last notebook, we mentioned the difficulty that comes with using the raw probabilities from each of the actions as variables to perform clustering over an array of variables that sum to one. A change in one of these variables necessarily produces a change in the other variables. One way to diminish the effect of that is to take the square root of the probabilities. With only two betting options for the BB player (checking, and betting 4.5 big blinds), we were easily able to transform the *d* variables into a *d-1* space, using a reference variable.
 
-But here our UTG player has three betting options: check; bet 3 big blinds, and bet 5.9 big blinds. more generalizable approach would be needed if we begin to give the solver 3 or more options at each node. We attempt one below.
+But here our UTG player has three betting options: check; bet 3 big blinds, and bet 5.9 big blinds. A more generalizable approach would be needed if we begin to give the solver 3 or more options at each node. I created compositional.R, which is an attempt at doing just that. It defines a function, add_compositional_distance(), which calculates the Mahalanobis distance for each flop, relative to the other flops in the dataframe.
 
 ```{r}
 source(here("R", "compositional.R"))
@@ -48,13 +49,13 @@ utg_v_check <- utg_v_check |>
 
 Mahalanobis distance measures how far a point is from the center of a distribution, accounting for the correlation structure of the variables. It is expressed in units of standard deviations.
 
-Low values (close to zero) indicate the observation is similar to the typical observation in the distribution, indicating good balance or similarity between groups. 
+Low values (close to zero) indicate the observation is similar to the typical observation in the distribution, indicating good balance or similarity between groups.
 
-High value sindicate the observation is far from the typical observation, indicating poor balance or dissimilarity between groups. 
+High values indicate the observation is far from the typical observation, indicating poor balance or dissimilarity between groups.
 
-In other words, the Mahalanobis measure captures how unusual a flop's strategy is, compared to the other flops. **This might suggest these are worth study as outliers or strategic exemplars.** 
+In other words, the Mahalanobis measure captures how unusual a flop's strategy is, compared to the other flops. **This might suggest these are worth study as outliers or strategic exemplars.**
 
-We can now start clustering these flops together using K-means. We'll try a few different options of K to see what makes sense, but start with K = 3 again. 
+We can now start clustering these flops together using K-means. We'll try a few different options of K to see what makes sense, but start with K = 3 again.
 
 ```{r}
 # K-means model spec, workflow, recipe, and fit below
@@ -93,9 +94,9 @@ flops_clustered |>
     count(cluster_3)
 ```
 
-Now let's plot the clusters in a 3D space of Equity, EV, and Check.[^2] The clustering was done in four dimensions and this plot is in three dimensions, so the clusters won't appear as sensible. 
+Now let's plot the clusters in a 3D space of Equity, EV, and Check.[^2] The clustering was done in four dimensions and this plot is in three dimensions, so the clusters won't appear as sensible.
 
-[^2]: While `Check` itself was not directly included as a clustering variable, it is implicitly captured through the reference transformation. The `Bet 5.9_ref` and `Bet 3_ref` variables used in clustering are ratios of the form $\sqrt{\text{Bet}} / \sqrt{\text{Check}}$, meaning Check serves as the denominator in both transformed variables. Since action probabilities form a simplex (summing to 1), the Check probability is inversely related to the betting probabilities. 
+[^2]: While `Check` itself was not directly included as a clustering variable, it is implicitly captured through the reference transformation. The `Bet 5.9_ref` and `Bet 3_ref` variables used in clustering are ratios of the form $\sqrt{\text{Bet}} / \sqrt{\text{Check}}$, meaning Check serves as the denominator in both transformed variables. Since action probabilities form a simplex (summing to 1), the Check probability is inversely related to the betting probabilities.
 
 ```{r}
 library(plotly)
@@ -360,4 +361,5 @@ flops_clustered |>
 ```
 
 # Regressions
+
 Out of curiosity, I wanted to regress EV on the other variables. (Add code blocks here)
