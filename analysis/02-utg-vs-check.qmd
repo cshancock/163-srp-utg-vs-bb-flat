@@ -34,9 +34,17 @@ The first notebook looked briefly at the actions of a BB caller to an UTG preflo
 
 In this workbook we look to see how UTG responds to the almost-certain check by the BB player.
 
-In the last notebook, we mentioned the difficulty that comes with using the raw probabilities from each of the actions as variables to perform clustering over an array of variables that sum to one. A change in one of these variables necessarily produces a change in the other variables. One way to diminish the effect of that is to take the square root of the probabilities. With only two betting options for the BB player (checking, and betting 4.5 big blinds), we were easily able to transform the *d* variables into a *d-1* space, using a reference variable.
+# Clustering variables when there are multiple betting options
+In the last notebook, we mentioned the difficulty that comes with using the raw probabilities from each of the actions as variables to perform clustering over an array of variables that sum to one. A change in one of these variables necessarily produces a change in the other variables. One way to diminish the effect of that is to take the square root of the probabilities. Another way was to reduce the number of variables, by transforming all but one of the variables to make reference to the remaining variable. With only two betting options for the BB player (checking, and betting 4.5 big blinds), we were easily able to transform the *d* variables into a *d-1* space, using Check as a reference variable.
 
-But here our UTG player has three betting options: check; bet 3 big blinds, and bet 5.9 big blinds. A more generalizable approach would be needed if we begin to give the solver 3 or more options at each node. I created compositional.R, which is an attempt at doing just that. It defines a function, add_compositional_distance(), which calculates the Mahalanobis distance for each flop, relative to the other flops in the dataframe.
+But the scenario we are evaluating in this workbook gives our UTG player has *three* betting options: 
+* check; 
+* bet 3 big blinds, and, 
+* bet 5.9 big blinds. 
+
+A more generalizable approach than the one we used last time would be needed if we begin to give the solver 3 or more options at each node. To handle this, I created compositional.R. It defines a function, add_compositional_distance(), which does two things: 
+* for each action other than Check (e.g., each betting option), it creates a column representing the ratio of the square root of the percentage of time the action is taken to the square root of the percentage of time the Check action is taken;
+* calculates the Mahalanobis distance for each flop, relative to the other flops in the dataframe, based on the ratios above.
 
 ```{r}
 source(here("R", "compositional.R"))
@@ -47,19 +55,34 @@ utg_v_check <- utg_v_check |>
     add_compositional_distance(action_cols = action_cols)
 ```
 
-Mahalanobis distance measures how far a point is from the center of a distribution, accounting for the correlation structure of the variables. It is expressed in units of standard deviations.
+Mahalanobis distance measures how far a point is from the center of a distribution, accounting for the correlation structure of the variables. It is expressed in units of standard deviations. 
 
-Low values (close to zero) indicate the observation is similar to the typical observation in the distribution, indicating good balance or similarity between groups.
+Low values (close to zero) indicate the observation (the set of betting choices the solver arrived at for the flop) is similar to the typical observation in the distribution, indicating similarity between with other flops.
 
-High values indicate the observation is far from the typical observation, indicating poor balance or dissimilarity between groups.
+High values indicate the observation is far from the typical observation, indicating dissimilarity between the flop and other flops.
 
 In other words, the Mahalanobis measure captures how unusual a flop's strategy is, compared to the other flops. **This might suggest these are worth study as outliers or strategic exemplars.**
 
-We can now start clustering these flops together using K-means. We'll try a few different options of K to see what makes sense, but start with K = 3 again.
+## Choosing the clustering variables
+The function above generates three variables (the transformed Bet 3 variable, the transformed Bet 5.9 variable, and the Mahalanobis distance measure) that we could choose to include as variables in our clustering algorithm, in addition to the EV and Equity variables. We almost certainly want EV and Equity to be two of our clustering variables.
+
+Since we can only represent clusters visually in a three dimensional space, there is some attraction to the idea of using three clustering variables. With two of them sorted out, using the Mahalanobis measure is tempting, as it is a function of the transformed Bet 3 and Bet 5.9 variables. Additionally, it represents how unusual a flop is compared to the other flops in our database. 
+
+But I think there's a downside to using it as a clustering variable. First, it collapses some of the betting nuances down to a single number. If a flop is bet for the large bet amount a large percentage of the time, we want to know that, and we probably want to cluster similar flops together with it. So using something closes to the original betting frequencies, such as the transformed Bet 3 and Bet 5.9 variables, makes more sense as clustering variables. If we want to identify flops by how unusual they are because we want to study them more closely than others, we can simply sort the table by Mahalanobis distance.
+
+One other possibility is that we cluster using EV, Equity, the transformed betting frequencies, *and* the Mahalanobis distance. But because the Mahalanobis distance is a function of the transformed betting frequencies, I am hesitant to do so.
+
+So for the analysis below, we use four clustering variables:
+* EV
+* Equity
+* Bet 3_ref (sqrt(Bet 3)/sqrt(Check))
+* Bet 5.9_ref (sqrt(Bet 5.9)/sqrt(Check))
+
+We can now start clustering these flops together using K-means. We'll try a few different options of K to see what makes sense, but start with K = 3.
 
 ```{r}
 # K-means model spec, workflow, recipe, and fit below
-# Cluster using K-means with K=3, using the variables in cluster_variables
+# Cluster using K-means with K=4, using the variables in cluster_variables
 cluster_variables <- c("Equity", "EV", "Bet 5.9_ref", "Bet 3_ref")
 
 library(tidymodels)
@@ -70,7 +93,6 @@ set.seed(67)
 kmeans_spec_3 <- k_means(num_clusters = 3)
 
 # Recipe: normalize all predictors
-# Not sure if I should be normalizing the `Bet 5.9_ref` and `Bet 3_ref` columns...
 kmeans_rec <- recipe(~., data = utg_v_check |> select(all_of(cluster_variables))) |>
     step_normalize(all_numeric_predictors())
 
@@ -94,7 +116,7 @@ flops_clustered |>
     count(cluster_3)
 ```
 
-Now let's plot the clusters in a 3D space of Equity, EV, and Check.[^2] The clustering was done in four dimensions and this plot is in three dimensions, so the clusters won't appear as sensible.
+Now let's plot the clusters in a 3D space of Equity, EV, and (1 / Check).[^2] The clustering was done along four dimensions and this plot is in three dimensions, so the clusters won't appear as sensible. (Additionally, two of the four clustering variables are not shown directly in the 3D plot.)
 
 [^2]: While `Check` itself was not directly included as a clustering variable, it is implicitly captured through the reference transformation. The `Bet 5.9_ref` and `Bet 3_ref` variables used in clustering are ratios of the form $\sqrt{\text{Bet}} / \sqrt{\text{Check}}$, meaning Check serves as the denominator in both transformed variables. Since action probabilities form a simplex (summing to 1), the Check probability is inversely related to the betting probabilities.
 
@@ -108,7 +130,7 @@ flops_clustered |>
     plot_ly(
         x = ~Equity,
         y = ~EV,
-        z = ~Check,
+        z = ~(1/Check),
         color = ~cluster_3,
         text = ~Tree,
         hovertemplate = paste(
@@ -132,7 +154,14 @@ flops_clustered |>
     )
 ```
 
-Despite the caveats about clustering in four dimensions and visualizing in only three, this doesn't look very informative. It's also noteworthy that the third cluster (in orange) only has 11 flops in it. Perhaps more than 3 clusters may be in order. We try 5 clusters in the code below:
+Despite the caveats about clustering in four dimensions and visualizing in only three, this doesn't look very informative. 
+
+(Although, once we invert the z-axis, it might be informative again.)
+(What is the correlation btwn Mahalanobis and 1/Check?)
+(It's a little disconcerting that this approach clusters flops with very different checking frequencies into the same cluster.)
+
+## K = 5
+We try 5 clusters in the code below:
 
 ```{r}
 # K-means model specification
@@ -195,6 +224,7 @@ flops_clustered |>
 
 We can try K=4, which might be best for clustering with these variables, but perhaps we need to consider some other way of performing clustering, or some other variables to cluster on. It's tempting to transform the bet frequency columns into weighted bet amounts, but that might obscure instances where we have a polarized betting strategy. Perhaps we can try K-means where K=3 and includes the Mahalanobis measure as well as EV and Equity.
 
+## K = 4
 Just for laughs let's cluster with K = 4 using the same variables we have been using.
 
 ```{r}
@@ -202,7 +232,6 @@ Just for laughs let's cluster with K = 4 using the same variables we have been u
 kmeans_spec_4 <- k_means(num_clusters = 4)
 
 # Recipe: normalize all predictors
-# Not sure if I should be normalizing the `Bet 5.9_ref` and `Bet 3_ref` columns...
 kmeans_rec <- recipe(~., data = utg_v_check |> select(all_of(cluster_variables))) |>
     step_normalize(all_numeric_predictors())
 
