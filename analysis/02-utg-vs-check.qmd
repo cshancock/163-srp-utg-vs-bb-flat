@@ -156,10 +156,11 @@ flops_clustered |>
 
 Despite the caveats about clustering in four dimensions and visualizing in only three, this doesn't look very informative. 
 
-(Although, once we invert the z-axis, it might be informative again.)
-(What is the correlation btwn Mahalanobis and 1/Check?)
-(It's a little disconcerting that this approach clusters flops with very different checking frequencies into the same cluster.)
+There are several follow-up questions we should investigate:
 
+- After inverting the z-axis, does this visualization become more informative?
+- What is the correlation between Mahalanobis distance and \(1/\text{Check}\)?
+- To what extent does this clustering approach group flops with very different checking frequencies into the same cluster?
 ## K = 5
 We try 5 clusters in the code below:
 
