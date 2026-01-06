@@ -82,7 +82,7 @@ We can now start clustering these flops together using K-means. We'll try a few 
 
 ```{r}
 # K-means model spec, workflow, recipe, and fit below
-# Cluster using K-means with K=4, using the variables in cluster_variables
+# Cluster using K-means with K=3, using the variables in cluster_variables
 cluster_variables <- c("Equity", "EV", "Bet 5.9_ref", "Bet 3_ref")
 
 library(tidymodels)
