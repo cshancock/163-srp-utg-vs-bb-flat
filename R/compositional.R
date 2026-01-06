@@ -49,7 +49,8 @@ add_compositional_distance <- function(df, action_cols, eps = 1e-6) {
   # Add to original dataframe
   df |>
     dplyr::bind_cols(transformed) |>
-    dplyr::mutate(mahalanobis = T2)
+    # Use Mahalanobis distance
+    dplyr::mutate(mahalanobis = sqrt(T2))
 }
 
 #' Additive log-ratio (ALR) transformation
