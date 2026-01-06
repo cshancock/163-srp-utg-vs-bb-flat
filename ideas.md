@@ -4,7 +4,7 @@
 ## Grouping flops with similar flops
 For each flop, each player has an average probability that they take each action available in the betting node. We cannot use these raw values to perform clustering however. We need to first transform them. Two possible ways to calculate distances for clustering with these variables, once they are transformed:
 * Aitchinson distance via log transformations
-* Jensen-Shannon divergergence or Hellinger distance 
+* Jensen-Shannon divergence or Hellinger distance 
 
 ## Dynamism
 Dynamic boards are those where hands can more easily change value.
