@@ -37,7 +37,7 @@ In this workbook we look to see how UTG responds to the almost-certain check by 
 # Clustering variables when there are multiple betting options
 In the last notebook, we mentioned the difficulty that comes with using the raw probabilities from each of the actions as variables to perform clustering over an array of variables that sum to one. A change in one of these variables necessarily produces a change in the other variables. One way to diminish the effect of that is to take the square root of the probabilities. Another way was to reduce the number of variables, by transforming all but one of the variables to make reference to the remaining variable. With only two betting options for the BB player (checking, and betting 4.5 big blinds), we were easily able to transform the *d* variables into a *d-1* space, using Check as a reference variable.
 
-But the scenario we are evaluating in this workbook gives our UTG player has *three* betting options: 
+But the scenario we are evaluating in this workbook gives our UTG player *three* betting options: 
 * check; 
 * bet 3 big blinds, and, 
 * bet 5.9 big blinds. 
