@@ -57,7 +57,7 @@ utg_v_check <- utg_v_check |>
 
 Mahalanobis distance measures how far a point is from the center of a distribution, accounting for the correlation structure of the variables. It is expressed in units of standard deviations. 
 
-Low values (close to zero) indicate the observation (the set of betting choices the solver arrived at for the flop) is similar to the typical observation in the distribution, indicating similarity between with other flops.
+Low values (close to zero) indicate the observation (the set of betting choices the solver arrived at for the flop) is similar to the typical observation in the distribution, indicating similarity with other flops.
 
 High values indicate the observation is far from the typical observation, indicating dissimilarity between the flop and other flops.
 
