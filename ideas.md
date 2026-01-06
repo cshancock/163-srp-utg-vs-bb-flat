@@ -41,7 +41,7 @@ Some of these could be 'range-aware', or they could be range agnostic.
 	- A discrete version could just count the number of suits, or classify as "monotone", "two-tone", or "rainbow"
 	- A clever version of this would consider, where there are 2 suits, whether the top ranked card 
 	is of the same suit as the suit of the draw
-* A variant might quanitfy how many flushes are possible for each player, or for both players, given their ranges
+* A variant might quantify how many flushes are possible for each player, or for both players, given their ranges
 	- Or, just use a fixed, empirical range reference set.
 
 #### Straightening
