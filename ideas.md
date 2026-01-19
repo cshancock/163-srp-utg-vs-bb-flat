@@ -4,6 +4,13 @@
 ## Grouping flops with similar flops
 For each flop, each player has an average probability that they take each action available in the betting node. We cannot use these raw values to perform clustering however. We need to first transform them. Two possible ways to calculate distances for clustering with these variables, once they are transformed:
 * Aitchinson distance via log transformations
+	* The centered log-ratio, in MathJax (for a four-part composition): \[
+\mathrm{clr}(f)_i = \log f_i - \frac{1}{4}\sum_{j=1}^{4}\log f_j
+\]
+	* Or, better, we can use the isometric log-ratio transformation for numerical stability: \[
+z_i \;=\; \sqrt{\frac{D-i}{D-i+1}}\;\ln\!\left(\frac{f_i}{\left(\prod_{j=i+1}^D f_j\right)^{1/(D-i)}}\right),\qquad i=1,\dots,D-1
+\]
+	* CLR is fine for intuition; ILR is better for modeling.
 * Jensen-Shannon divergence or Hellinger distance 
 
 ## Dynamism
