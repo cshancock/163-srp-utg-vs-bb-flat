@@ -9,6 +9,8 @@ This project analyzes Game Theory Optimal (GTO) solver output for a poker scenar
 ## Tech Stack
 
 - **Language**: R
+   - If you *ever* have any problem writing R code, use btw::btw() to get help on understanding a function.
+   - Use ?btw to get help on the btw package.
 - **Notebook format**: Quarto (`.qmd` files)
 - **Key libraries**: tidyverse, tidymodels, tidyclust, readxl, plotly
 - **Data source**: Excel workbook from GTO+ solver in `data-raw/`
